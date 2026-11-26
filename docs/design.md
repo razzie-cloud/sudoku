@@ -36,11 +36,13 @@ candidate subsets. Master requires a search after those techniques stall.
 Bound generation work and honor cancellation. Return a retryable error if the
 requested tier cannot be generated within the budget.
 
-Build the initial collections offline with deterministic, recorded seeds for
-each tier. Commit the generated definitions and verify their uniqueness and
-difficulty. Keep collection keys and numbered slots stable across upgrades.
-Changing a published board requires a new collection edition. Keep solutions
-server-side and derive completion by validating the full submitted board.
+The initial collections contain 32 boards per tier. The preparation command
+uses PCG seed 20261126 and the zero-based tier index, and the catalog test
+verifies uniqueness and rating for every board. Startup records a SHA-256
+digest for each edition's ordered boards in PostgreSQL and rejects a changed
+edition. Keep collection keys and numbered slots stable across upgrades.
+Changing a published board requires a new collection edition. Derive
+completion by validating the full submitted board against its immutable clues.
 
 ## Persistence and HTTP
 
