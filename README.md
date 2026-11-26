@@ -9,7 +9,7 @@ See [the design](docs/design.md) for the difficulty levels, save behavior and
 platform integration. This repository owns the Go module
 `github.com/razzie-cloud/sudoku`.
 
-## Run and verify
+## Run
 
 Run `go run ./cmd/sudoku` with these settings:
 
@@ -26,6 +26,17 @@ Run `go run ./cmd/sudoku` with these settings:
 
 The gateway signs requests for the configured public origin. For development,
 use the parent reverse proxy for sign-in and the configured Sudoku host.
+The parent Compose stack starts Sudoku with Air at `http://sudoku.localhost:8080`
+and provisions `postgres/sudoku` with a scoped development token. Run
+`make local-auth` from the parent to generate the token. For a local stack
+already running, recreate the broker to load the updated policy.
+
+The Swarm stack uses two replicas at `sudoku.<DOMAIN>`. Preserve the Sudoku
+PostgreSQL database in backups. Once the repository and commit are remotely
+available, register `sudoku/` as a parent submodule. Select the published
+`SUDOKU_IMAGE_TAG` and a Landing image with the Sudoku icon before rollout.
+
+## Verification
 
 Run `go build ./...`, `go vet ./...`, `go test ./...` and
 `go test -race ./...`. Set `TEST_DATABASE_URL` to a disposable loopback
@@ -35,3 +46,11 @@ Regenerate the initial collections with `go generate ./internal/catalog`.
 Set `CHROMIUM_EXECUTABLE_PATH` to an installed Chromium binary alongside
 `TEST_DATABASE_URL` to run the browser checks. They exercise the production
 templates, signed requests and real PostgreSQL saves in both color schemes.
+
+The initial integration passed build and vet, and 117 tests with disposable
+PostgreSQL and Chromium, including the race suite. Browser checks covered
+320, 390, 768 and 1440 pixel widths, save recovery and archive transitions.
+The catalog reproduced byte-for-byte. Runtime and Air images built locally,
+along with the updated Landing image. Compose and Swarm passed offline config
+checks. The browser fixture signs requests with a test Gateway key. Live
+passkey sign-in, image publication and a Swarm rollout remain release checks.
