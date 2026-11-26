@@ -23,6 +23,7 @@ import (
 	"github.com/razzie-cloud/sudoku/internal/health"
 	"github.com/razzie-cloud/sudoku/internal/logging"
 	"github.com/razzie-cloud/sudoku/internal/store"
+	"github.com/razzie-cloud/sudoku/internal/web"
 )
 
 type Server struct {
@@ -54,6 +55,7 @@ func New(cfg config.Config, storage *store.Store, verifier *gatewayidentity.Veri
 		return nil, errors.New("Sudoku requires a configured origin and signed gateway identity")
 	}
 	a := &Server{cfg: cfg, store: storage, verifier: verifier, health: monitor, host: origin.Host, mux: http.NewServeMux(), collections: collections, generating: make(chan struct{}, 2)}
+	a.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(web.Static()))))
 	a.mux.HandleFunc("GET /{$}", a.games)
 	a.mux.HandleFunc("GET /sessions", a.games)
 	a.mux.HandleFunc("GET /archive", a.games)
@@ -109,10 +111,6 @@ func (a *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx = context.WithValue(ctx, accountKey{}, account{id, r.Header.Get("X-Auth-Request-Name"), a.verifier.IsAdmin(r)})
 	a.mux.ServeHTTP(w, r.WithContext(ctx))
-}
-
-func (a *Server) page(w http.ResponseWriter, r *http.Request, name string, data any, status int) {
-	reply(w, status, data)
 }
 
 func reply(w http.ResponseWriter, status int, data any) {

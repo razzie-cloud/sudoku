@@ -10,26 +10,25 @@ import (
 )
 
 type tile struct {
-	Slot   int         `json:"slot"`
-	Givens board.Board `json:"givens"`
-	Status string      `json:"status"`
+	Slot   int
+	Givens board.Board
+	Status string
 }
 
 type collectionView struct {
-	Key       string `json:"key"`
-	Title     string `json:"title"`
-	Completed int    `json:"completed"`
-	Tiles     []tile `json:"tiles"`
+	Key       string
+	Title     string
+	Completed int
+	Tiles     []tile
 }
 
 type puzzlePage struct {
 	store.State
-	Collection string           `json:"collection"`
-	Title      string           `json:"title"`
-	Difficulty board.Difficulty `json:"difficulty"`
-	Givens     board.Board      `json:"givens"`
-	Slot       int              `json:"slot"`
-	Next       string           `json:"next,omitempty"`
+	Collection string
+	Title      string
+	Givens     board.Board
+	Slot       int
+	Next       string
 }
 
 type puzzleKey struct {
@@ -107,7 +106,7 @@ func (a *Server) puzzle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, message, status)
 		return
 	}
-	page := puzzlePage{State: state, Collection: c.Key, Title: c.Title, Difficulty: c.Difficulty, Givens: givens, Slot: slot}
+	page := puzzlePage{State: state, Collection: c.Key, Title: c.Title, Givens: givens, Slot: slot}
 	for offset := 1; offset < len(c.Puzzles); offset++ {
 		next := (slot-1+offset)%len(c.Puzzles) + 1
 		if !progress[puzzleKey{c.Key, next}] {

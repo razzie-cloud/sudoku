@@ -1,0 +1,140 @@
+{{define "page"}}<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"historyCacheSize":0,"refreshOnHistoryMiss":true,"allowScriptTags":false}'>
+<title>{{.Title}} · Sudoku · Razzie Cloud</title>
+<link rel="icon" href="/static/razzie-cloud-logo-favicon.png">
+<link rel="stylesheet" href="/static/pico.min.css">
+<link rel="stylesheet" href="/static/sudoku.css">
+<link rel="stylesheet" href="/static/account-header.css">
+<script defer src="/static/sudoku.js"></script>
+<script defer src="/static/htmx.min.js"></script>
+</head><body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="cloud-header topbar">
+  <div class="brand-group">
+    <a class="brand" href="{{.Home}}"><img class="brand-mark" src="/static/razzie-cloud-logo.png" width="46" height="46" alt=""><strong>Razzie Cloud</strong></a>
+    <a class="service-name" href="/">Sudoku</a>
+  </div>
+  <div class="topbar-right"><div class="identity" aria-label="Signed-in account">
+    <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8 12 3 3 5-6"/></svg>
+    <div class="identity-copy"><a class="account-link" href="{{.Account}}" title="Manage your account"><strong title="{{.User.Name}}">{{.User.Name}}</strong></a>{{if .User.Admin}}<span class="badge green">Administrator</span>{{end}}</div>
+  </div></div>
+</header>
+<div id="workspace" hx-boost="true" hx-target="#workspace" hx-select="#workspace" hx-swap="outerHTML show:window:top" hx-sync="#workspace:replace" hx-history="false">
+  <nav class="app-nav" aria-label="Sudoku"><ul>
+    <li><a href="/games/new" {{if eq .Nav "new"}}aria-current="page"{{end}}>New game</a></li>
+    <li><a href="/sessions" {{if eq .Nav "sessions"}}aria-current="page"{{end}}>Sessions</a></li>
+    <li><a href="/archive" {{if eq .Nav "archive"}}aria-current="page"{{end}}>Archive</a></li>
+    <li><a href="/puzzles" {{if eq .Nav "puzzles"}}aria-current="page"{{end}}>Puzzles</a></li>
+  </ul></nav>
+  <main id="main" class="container" tabindex="-1">
+    {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+    {{if eq .Kind "setup"}}{{template "setup" .Data}}
+    {{else if eq .Kind "games"}}{{template "games" .Data}}
+    {{else if eq .Kind "collections"}}{{template "collections" .Data}}
+    {{else if .Board}}{{template "play" .Board}}
+    {{end}}
+  </main>
+</div>
+<footer>Razzie Cloud · Sudoku</footer>
+</body></html>{{end}}
+
+{{define "setup"}}
+<h1>New game</h1>
+<div class="game-grid">
+  <section class="example-board">
+    <h2>Example board</h2>
+    <div class="mini-board sudoku-grid" data-example role="img" aria-label="{{.Difficulty.Title}} example board">
+      {{template "mini-cells" .Example}}
+    </div>
+  </section>
+  <aside class="play-sidebar">
+    <h2>Game difficulty</h2>
+    <form action="/games" method="post" hx-boost="false" data-setup>
+      <input type="hidden" name="id" value="{{.ID}}">
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty" name="difficulty">
+        {{$selected := .Difficulty}}{{range .Options}}<option value="{{.Difficulty}}" data-example="{{.Example}}" {{if eq .Difficulty $selected}}selected{{end}}>{{.Difficulty.Title}}</option>{{end}}
+      </select>
+      <button type="submit">Generate game</button>
+    </form>
+  </aside>
+</div>
+{{end}}
+
+{{define "mini-cells"}}{{range .}}<span aria-hidden="true">{{if .}}{{.}}{{end}}</span>{{end}}{{end}}
+
+{{define "games"}}
+<div class="game-list">
+{{range .Games}}
+  <article class="game-card"><a class="game-card-link" href="/games/{{.ID}}">
+    <div class="game-card-heading"><strong>{{.Difficulty.Title}} game</strong>{{if .CompletedAt}}<span class="badge green">Solved</span>{{else if .Archived}}<span class="badge">Archived</span>{{end}}</div>
+    <div class="mini-board sudoku-grid" role="img" aria-label="Latest saved board">{{template "mini-cells" .Entries}}</div>
+    <time datetime="{{.UpdatedAt.UTC.Format "2006-01-02T15:04:05Z"}}">{{.UpdatedAt.UTC.Format "2 Jan 2006, 15:04 UTC"}}</time>
+  </a></article>
+{{else}}
+  {{if .Archive}}<p>No archived games yet.</p>{{else}}<p>No games in progress. <a href="/games/new">Start a new game</a>.</p>{{end}}
+{{end}}
+</div>
+{{if .Next}}<p class="older"><a href="{{.Next}}">Older games</a></p>{{end}}
+{{end}}
+
+{{define "collections"}}
+{{range .}}<section class="puzzle-collection">
+  <header><h2>{{.Title}}</h2><span class="badge">{{.Completed}} / {{len .Tiles}} done</span></header>
+  <div class="puzzle-grid">
+    {{$key := .Key}}{{range .Tiles}}<a class="{{.Status}}" href="/puzzles/{{$key}}/{{.Slot}}" data-preview="{{.Givens}}" aria-label="Puzzle {{.Slot}} · {{tileStatus .Status}}">{{.Slot}}{{if eq .Status "completed"}}<span class="puzzle-done" aria-hidden="true">✓</span>{{end}}</a>{{end}}
+  </div>
+</section>{{end}}
+<div id="puzzle-tooltip" class="puzzle-tooltip" role="tooltip" hidden>
+  <div class="mini-board sudoku-grid" role="img" aria-label="Puzzle's starting board"></div>
+</div>
+{{end}}
+
+{{define "play"}}
+<h1>{{.Title}}</h1>
+<section class="game-grid" data-play data-save-url="{{.URL}}/save" data-entries="{{.Entries}}" data-givens="{{.Givens}}" data-notes="{{.NotesText}}" data-revision="{{.Revision}}" data-readonly="{{.ReadOnly}}" data-completed="{{.Completed}}">
+  <div class="play-board"><section class="sudoku-grid" aria-label="Sudoku board">
+    {{$b := .}}{{range $i, $digit := .Entries}}{{$clue := index $b.Givens $i}}{{$notes := index $b.Notes $i}}
+      <button type="button" class="cell{{if $clue}} clue{{end}}" data-cell="{{$i}}" tabindex="-1" aria-label="{{cellLabel $i $clue $digit $notes}}" {{if $b.ReadOnly}}disabled{{end}}>
+        <span data-digit aria-hidden="true">{{if $digit}}{{$digit}}{{end}}</span>
+        <span class="pencil" data-marks aria-hidden="true" {{if $digit}}hidden{{end}}>{{range noteDigits $notes}}<span>{{.}}</span>{{end}}</span>
+      </button>
+    {{end}}
+  </section></div>
+  <aside class="play-sidebar">
+    <p class="save-status" data-status role="status">{{if .Completed}}Solved{{else if .ReadOnly}}Archived{{else if .Revision}}Saved{{else}}Moves save automatically.{{end}}</p>
+    <div class="save-actions" data-save-actions hidden>
+      <button type="button" class="secondary outline" data-retry hidden>Retry save</button>
+      <button type="button" class="secondary outline" data-reload hidden>Load saved board</button>
+      <a href="{{.Account}}" hx-boost="false" target="_blank" rel="noopener" data-sign-in hidden>Sign in</a>
+    </div>
+    {{if not .ReadOnly}}
+    <div data-controls>
+      <fieldset class="keypad" aria-label="Enter a digit">
+        {{range .Digits}}<button type="button" class="secondary outline" data-key="{{.}}">{{.}}</button>{{end}}
+      </fieldset>
+      <div class="board-tools">
+        <button type="button" class="secondary outline" data-pencil aria-pressed="false">Pencil</button>
+        <button type="button" class="secondary outline" data-clear>Clear</button>
+      </div>
+      <noscript><p>Enable JavaScript to edit the board.</p></noscript>
+    </div>
+    {{end}}
+    <div class="play-actions">
+      <a href="{{.BackURL}}" data-back>{{.BackLabel}}</a>
+      {{if .Next}}<a href="{{.Next}}" {{if not .Completed}}hidden{{end}} data-next>Next unfinished puzzle →</a>{{end}}
+      {{if and .Puzzle (not .Next)}}<span data-next {{if not .Completed}}hidden{{end}}>Collection complete</span>{{end}}
+      {{if and (not .Puzzle) (not .Completed)}}
+      <form method="post" action="{{.URL}}/archive" hx-boost="false" data-archive>
+        <input type="hidden" name="revision" value="{{.Revision}}">
+        <input type="hidden" name="action" value="{{if .ReadOnly}}resume{{else}}archive{{end}}">
+        <button type="submit" class="secondary outline">{{if .ReadOnly}}Resume game{{else}}Archive game{{end}}</button>
+      </form>
+      {{end}}
+    </div>
+  </aside>
+</section>
+{{end}}

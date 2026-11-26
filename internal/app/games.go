@@ -19,25 +19,49 @@ import (
 )
 
 type setupPage struct {
-	ID           uuid.UUID           `json:"id"`
-	Difficulty   board.Difficulty    `json:"difficulty"`
-	Difficulties [5]board.Difficulty `json:"difficulties"`
-	Error        string              `json:"error,omitempty"`
+	ID         uuid.UUID
+	Difficulty board.Difficulty
+	Example    board.Board
+	Options    []difficultyOption
+	Error      string
+}
+
+type difficultyOption struct {
+	Difficulty board.Difficulty
+	Example    board.Board
 }
 
 type gamesPage struct {
-	Games   []store.Game `json:"games"`
-	Archive bool         `json:"archive"`
-	Next    string       `json:"next,omitempty"`
+	Games   []store.Game
+	Archive bool
+	Next    string
 }
 
 type gamePage struct {
 	store.Game
-	Error string `json:"error,omitempty"`
+	Error string
 }
 
 func (a *Server) newGame(w http.ResponseWriter, r *http.Request) {
-	a.page(w, r, "setup", setupPage{ID: uuid.New(), Difficulty: board.Medium, Difficulties: board.Difficulties()}, http.StatusOK)
+	a.setup(w, r, uuid.New(), board.Medium, "", http.StatusOK)
+}
+
+func (a *Server) setup(w http.ResponseWriter, r *http.Request, id uuid.UUID, selected board.Difficulty, message string, status int) {
+	view := setupPage{ID: id, Difficulty: selected, Error: message}
+	for _, difficulty := range board.Difficulties() {
+		option := difficultyOption{Difficulty: difficulty}
+		for _, collection := range a.collections {
+			if collection.Difficulty == difficulty && len(collection.Puzzles) != 0 {
+				option.Example = collection.Puzzles[0]
+				break
+			}
+		}
+		view.Options = append(view.Options, option)
+		if selected == difficulty {
+			view.Example = option.Example
+		}
+	}
+	a.page(w, r, "setup", view, status)
 }
 
 func (a *Server) createGame(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +72,7 @@ func (a *Server) createGame(w http.ResponseWriter, r *http.Request) {
 	difficulty := board.Difficulty(field(r, "difficulty"))
 	id, err := uuid.Parse(field(r, "id"))
 	if err != nil || id == uuid.Nil || !difficulty.Valid() {
-		a.page(w, r, "setup", setupPage{uuid.New(), board.Medium, board.Difficulties(), "Choose a difficulty."}, http.StatusUnprocessableEntity)
+		a.setup(w, r, uuid.New(), board.Medium, "Choose a difficulty.", http.StatusUnprocessableEntity)
 		return
 	}
 	ctx, owner := r.Context(), user(r).ID
@@ -65,14 +89,14 @@ func (a *Server) createGame(w http.ResponseWriter, r *http.Request) {
 			err = generation.Err()
 		}
 		if err != nil {
-			a.page(w, r, "setup", setupPage{id, difficulty, board.Difficulties(), "Generation timed out. Try again."}, http.StatusServiceUnavailable)
+			a.setup(w, r, id, difficulty, "Could not generate this game. Try again.", http.StatusServiceUnavailable)
 			return
 		}
 		_, err = a.store.CreateGame(ctx, owner, id, difficulty, givens)
 	}
 	if err != nil {
 		status, message := result(r, err)
-		a.page(w, r, "setup", setupPage{id, difficulty, board.Difficulties(), message}, status)
+		a.setup(w, r, id, difficulty, message, status)
 		return
 	}
 	http.Redirect(w, r, "/games/"+id.String(), http.StatusSeeOther)

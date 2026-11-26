@@ -31,3 +31,7 @@ Run `go build ./...`, `go vet ./...`, `go test ./...` and
 `go test -race ./...`. Set `TEST_DATABASE_URL` to a disposable loopback
 PostgreSQL database to include the persistence tests. They use isolated schemas.
 Regenerate the initial collections with `go generate ./internal/catalog`.
+
+Set `CHROMIUM_EXECUTABLE_PATH` to an installed Chromium binary alongside
+`TEST_DATABASE_URL` to run the browser checks. They exercise the production
+templates, signed requests and real PostgreSQL saves in both color schemes.

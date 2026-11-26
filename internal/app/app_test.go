@@ -323,3 +323,63 @@ func TestRandomGameLifecycle(t *testing.T) {
 		t.Fatalf("sessions %+v err=%v", sessions, err)
 	}
 }
+
+func TestSaveValidation(t *testing.T) {
+	collections, givens, _ := testPuzzles(t)
+	storage := testStorage(t, collections)
+	signer := newTestSigner(t, testOrigin)
+	handler, err := New(config.Config{Origin: testOrigin}, storage, signer.verifier, nil, collections)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, id := uuid.New(), uuid.New()
+	if _, err := storage.CreateGame(t.Context(), owner, id, board.Easy, givens); err != nil {
+		t.Fatal(err)
+	}
+	for i, path := range []string{"/puzzles/easy-1/1/save", "/games/" + id.String() + "/save"} {
+		revision := int64(i)
+		valid := store.Edit{Entries: givens, Revision: revision}
+		valid.Entries[0] = 5
+		changedClue := valid
+		changedClue.Entries[2] = 0
+		invalidNotes := valid
+		invalidNotes.Notes[0] = 1
+		body := func(edit store.Edit) string {
+			encoded, err := json.Marshal(edit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return string(encoded)
+		}
+		for _, tc := range []struct {
+			name, body string
+			status     int
+		}{
+			{"malformed", "{", 422},
+			{"unknown-field", strings.TrimSuffix(body(valid), "}") + `,"owner":"elsewhere"}`, 422},
+			{"oversized", body(valid) + strings.Repeat(" ", 4096), 422},
+			{"changed-clue", body(changedClue), 422},
+			{"notes-under-digit", body(invalidNotes), 422},
+			{"partial", body(valid), 200},
+		} {
+			t.Run(path+"/"+tc.name, func(t *testing.T) {
+				req := httptest.NewRequest("POST", testOrigin+path, strings.NewReader(tc.body))
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Origin", testOrigin)
+				signer.sign(req, testOrigin, owner)
+				out := httptest.NewRecorder()
+				handler.ServeHTTP(out, req)
+				if out.Code != tc.status {
+					t.Fatalf("status=%d want=%d: %s", out.Code, tc.status, out.Body)
+				}
+				if tc.status == 200 {
+					var saved saveResponse
+					if err := json.Unmarshal(out.Body.Bytes(), &saved); err != nil || saved.State.CompletedAt != nil ||
+						saved.State.Revision != revision+1 || saved.State.Entries != valid.Entries {
+						t.Fatalf("partial save=%+v err=%v", saved, err)
+					}
+				}
+			})
+		}
+	}
+}

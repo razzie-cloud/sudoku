@@ -19,8 +19,8 @@ are disabled.
   Completed tiles follow Chess's green border and checkmark. In-progress tiles
   have a distinct amber border and expose the state in the accessible label.
   The grid retains the same tile dimensions in each state. A shared board
-  tooltip shows the givens on hover or keyboard focus. Tiles open the saved
-  attempt or the initial board if no moves have been saved.
+  tooltip shows the givens on hover, keyboard focus or touch and hold. Tiles
+  open the saved attempt or the initial board if no moves have been saved.
 - **Play** uses an editable 9×9 board next to digit, clear and pencil controls.
   Players can enter digits and move between cells with the keyboard. Clues are
   immutable. Completed boards are read-only. Collection puzzles offer a link
@@ -60,6 +60,8 @@ Competing edits receive the current revision and preserve the local draft for
 the player to resolve. Use one transaction or conditional write for a change
 and the associated completion or archive state. Browser saves are serialized,
 retain the draft on errors and guard navigation while a draft is pending.
+To resolve a revision conflict, the player can explicitly replace the draft
+with the latest saved board.
 
 Serve `/`, `/sessions`, `/archive`, `/games/new`, `/games/{id}`, `/puzzles`
 and `/puzzles/{collection}/{slot}` on the Sudoku host. Use POST for creation,
