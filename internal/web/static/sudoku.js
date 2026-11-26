@@ -245,6 +245,7 @@
       const next = this.root.querySelector('[data-next]');
       if (next) next.hidden = false;
       this.status.textContent = 'Solved';
+      fireworks.play();
     }
 
     async submitArchive(event) {
@@ -261,6 +262,7 @@
     }
 
     dispose() {
+      fireworks.stop();
       this.disposed = true;
       clearTimeout(this.timer);
       this.controller?.abort();

@@ -5,6 +5,11 @@ numbered puzzle collections. It follows Chess's layout for New game,
 Sessions, Archive and Puzzles. PostgreSQL stores each player's boards and
 collection progress.
 
+Solving a board plays a brief local fireworks effect after the server confirms
+the save. It respects reduced-motion preferences and does not replay when
+reopening a solved board. The embedded `fireworks.js` matches Chess's copy so
+each service remains independently deployable.
+
 See [the design](docs/design.md) for the difficulty levels, save behavior and
 platform integration. This repository owns the Go module
 `github.com/razzie-cloud/sudoku`.
@@ -46,6 +51,8 @@ Regenerate the initial collections with `go generate ./internal/catalog`.
 Set `CHROMIUM_EXECUTABLE_PATH` to an installed Chromium binary alongside
 `TEST_DATABASE_URL` to run the browser checks. They exercise the production
 templates, signed requests and real PostgreSQL saves in both color schemes.
+They include solved-board fireworks, navigation cleanup, reduced motion and
+reopening completed puzzles. Set `SUDOKU_SCREENSHOT_DIR` to capture the previews.
 
 The initial integration passed build and vet, and 117 tests with disposable
 PostgreSQL and Chromium, including the race suite. Browser checks covered

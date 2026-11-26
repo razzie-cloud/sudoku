@@ -199,10 +199,35 @@ editCell(0, 5);
 editCell(1, 3);
 await wait(() => el('[data-play]').dataset.completed === 'true');
 assert(el('[data-status]').textContent === 'Solved' && el('[data-cell="0"]').disabled, 'completion did not lock');
+assert(document.querySelector('.fireworks'), 'solved puzzle did not celebrate');
 assert(el('[data-next]').textContent === 'Collection complete' && !el('[data-next]').hidden, 'collection completion absent');
+`)
+	for _, theme := range []string{"light", "dark"} {
+		b.Call("Emulation.setEmulatedMedia", map[string]any{"features": []map[string]string{{"name": "prefers-color-scheme", "value": theme}}})
+		for _, width := range []int{320, 390, 768, 1440} {
+			b.Viewport(width, 1000)
+			b.Run(`await frame();fireworks.play();await frame();assert(getComputedStyle(el('.fireworks')).pointerEvents==='none','fireworks block controls');assert(document.documentElement.scrollWidth<=innerWidth,'fireworks overflow');`)
+			if width == 390 || width == 1440 {
+				b.Run(`await new Promise(resolve=>setTimeout(resolve,700));`)
+				captureSudoku(t, b, "fireworks-"+theme+"-"+strconv.Itoa(width))
+			}
+		}
+	}
+	b.Call("Emulation.setEmulatedMedia", map[string]any{"features": []map[string]string{{"name": "prefers-reduced-motion", "value": "reduce"}}})
+	b.Run(`await wait(()=>!document.querySelector('.fireworks'));fireworks.play();assert(!document.querySelector('.fireworks'),'reduced motion animated');`)
+	b.Call("Emulation.setEmulatedMedia", map[string]any{"features": []map[string]string{{"name": "prefers-reduced-motion", "value": "no-preference"}}})
+	b.Run(`
+fireworks.play();
 el('[data-back]').click();
 await wait(() => document.querySelector('[data-preview]'));
 assert(el('[data-preview]').getAttribute('aria-label').includes('Completed'), 'completion did not persist');
+assert(!document.querySelector('.fireworks'), 'fireworks survived navigation');
+`)
+	b.Run(`
+await frame();
+el('[data-preview]').click();
+await wait(() => document.querySelector('[data-play][data-completed="true"]'));
+assert(!document.querySelector('.fireworks'), 'reopened puzzle celebrated again');
 assert(cspViolations.length === 0, 'CSP violation: ' + cspViolations);
 `)
 	saved, err = storage.Attempt(t.Context(), owner, "easy-1", 1, givens)
@@ -244,6 +269,7 @@ assert(el('[data-cell="0"] [data-digit]').textContent === '5', 'resume lost save
 editCell(1, 3);
 await wait(() => document.querySelector('[data-play][data-completed="true"]'));
 assert(el('.app-nav [aria-current="page"]').textContent === 'Archive' && el('[data-back]').getAttribute('href') === '/archive', 'archive navigation not active after solve');
+assert(document.querySelector('.fireworks'), 'solved random game did not celebrate');
 el('[data-back]').click();
 await wait(() => location.pathname === '/archive' && document.querySelector('.game-card-link'));
 assert(el('.game-card-link .mini-board').children[1].textContent === '3', 'archived solved thumbnail stale');

@@ -310,3 +310,5 @@ footer { text-align: center; color: var(--pico-muted-color); padding: 2rem 1rem;
   .app-nav { --pico-nav-element-spacing-horizontal: .4rem; font-size: .85rem; }
   .puzzle-grid { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
 }
+
+.fireworks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
