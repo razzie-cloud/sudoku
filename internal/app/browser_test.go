@@ -61,6 +61,8 @@ func sudokuBrowser(t *testing.T, storage *store.Store, owner uuid.UUID, collecti
 	b.Call("Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": `
 window.cspViolations = [];
 addEventListener('securitypolicyviolation', event => cspViolations.push(event.violatedDirective));
+// Expose clicks that run before HTMX has finished processing swapped links.
+addEventListener('DOMContentLoaded', () => { htmx.config.defaultSettleDelay = 100; });
 window.editCell = (index, digit) => {
   const cell = document.querySelector('[data-cell="' + index + '"]');
   cell.click();
@@ -137,7 +139,7 @@ el('[data-back]').click();
 await wait(() => location.pathname === '/puzzles' && document.querySelector('.puzzle-grid'));
 const tile = el('[data-preview]');
 assert(tile.textContent.trim() === '1' && tile.getAttribute('aria-label').includes('In progress'), 'missing progress label or extra tile copy');
-await frame();
+await settled();
 tile.click();
 await wait(() => document.querySelector('[data-play][data-revision="2"] [data-cell][tabindex="0"]'));
 assert(el('[data-cell="1"] [data-marks]').children[2].textContent === '3', 'resuming lost marks');
@@ -224,7 +226,7 @@ assert(el('[data-preview]').getAttribute('aria-label').includes('Completed'), 'c
 assert(!document.querySelector('.fireworks'), 'fireworks survived navigation');
 `)
 	b.Run(`
-await frame();
+await settled();
 el('[data-preview]').click();
 await wait(() => document.querySelector('[data-play][data-completed="true"]'));
 assert(!document.querySelector('.fireworks'), 'reopened puzzle celebrated again');
@@ -260,7 +262,7 @@ el('[data-archive] button').click();
 assert(el('.game-card-link .mini-board').firstElementChild.textContent === '5', 'archiving lost latest edit');
 el('.game-card-link').click();
 await wait(() => document.querySelector('[data-play][data-readonly="true"]'));
-await frame();
+await settled();
 setTimeout(() => el('[data-archive] button').click(), 0);
 `)
 	b.WaitFor(`document.querySelector('[data-play][data-readonly="false"] [data-cell][tabindex="0"]')`)
@@ -274,7 +276,7 @@ el('[data-back]').click();
 await wait(() => location.pathname === '/archive' && document.querySelector('.game-card-link'));
 assert(el('.game-card-link .mini-board').children[1].textContent === '3', 'archived solved thumbnail stale');
 assert(el('.game-card-link').textContent.includes('Solved'), 'archived game status absent');
-await frame();
+await settled();
 el('.app-nav a[href="/games/new"]').click();
 await wait(() => document.querySelector('#difficulty[data-ready="true"]'));
 const difficulty = el('#difficulty');

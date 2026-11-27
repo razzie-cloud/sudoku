@@ -328,5 +328,6 @@ const Helpers = `
 const assert=(ok,message)=>{if(!ok)throw Error(message||'assertion failed')};
 const wait=async(fn)=>{const end=Date.now()+5000;while(!fn()){if(Date.now()>end)throw Error('timed out: '+fn);await new Promise(r=>setTimeout(r,20));}};
 const el=s=>{const e=document.querySelector(s);assert(e,'missing '+s);return e};
+const settled=()=>wait(()=>document.querySelector('#workspace:not(.htmx-settling)'));
 const frame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 `
